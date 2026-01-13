@@ -1,7 +1,7 @@
-from youtube_summary_tool import analyze_youtube_comments, answer_question, extract_video_id, CURRENT_VIDEO_ID, \
+import os
+from src.youtube_summary_tool import analyze_youtube_comments, answer_question, extract_video_id, CURRENT_VIDEO_ID, \
     close_chroma_connection
 from flask import Flask, request, jsonify, send_from_directory, render_template
-import os
 import json
 import time
 import matplotlib
@@ -9,7 +9,14 @@ import matplotlib
 # Set matplotlib to use a non-interactive backend before any other matplotlib imports
 matplotlib.use('Agg')
 
-app = Flask(__name__, static_folder='static')
+# Get the project root directory (where app.py is located)
+project_root = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    static_folder=os.path.join(project_root, 'static'),
+    template_folder=os.path.join(project_root, 'templates')
+)
 
 # Store the latest analysis results
 latest_results = None
@@ -65,7 +72,8 @@ def ask_question_api():
 
     try:
         # Check if we have a valid database to query
-        if not os.path.exists("chroma"):
+        chroma_path = os.path.join(project_root, "chroma")
+        if not os.path.exists(chroma_path):
             if not latest_results:
                 return jsonify({'error': 'No analysis has been performed yet. Please analyze a video first.'}), 400
             else:
@@ -99,20 +107,22 @@ def ask_question_api():
 @app.route('/api/status', methods=['GET'])
 def get_status():
     try:
+        chroma_path = os.path.join(project_root, "chroma")
         status = {
-            'database_exists': os.path.exists("chroma"),
+            'database_exists': os.path.exists(chroma_path),
             'current_video_id': CURRENT_VIDEO_ID
         }
 
-        # Add metadata from JSON file if it exists
-        metadata_path = os.path.join("chroma", "video_metadata.json")
-        if os.path.exists(metadata_path):
-            try:
-                with open(metadata_path, 'r', encoding='utf-8') as f:
-                    metadata = json.load(f)
-                status['metadata'] = metadata
-            except Exception as e:
-                status['metadata_error'] = str(e)
+        # Add metadata from JSON file if it exists (per video)
+        if CURRENT_VIDEO_ID:
+            metadata_path = os.path.join(chroma_path, CURRENT_VIDEO_ID, "video_metadata.json")
+            if os.path.exists(metadata_path):
+                try:
+                    with open(metadata_path, 'r', encoding='utf-8') as f:
+                        metadata = json.load(f)
+                    status['metadata'] = metadata
+                except Exception as e:
+                    status['metadata_error'] = str(e)
 
         return jsonify(status)
     except Exception as e:
@@ -122,14 +132,15 @@ def get_status():
 # Serve static files
 @app.route('/static/<path:path>')
 def serve_static(path):
-    return send_from_directory('static', path)
+    return send_from_directory(app.static_folder, path)
 
 
 # Serve files from root directory
 @app.route('/<path:path>')
 def serve_root_files(path):
-    if os.path.exists(path):
-        return send_from_directory('.', path)
+    file_path = os.path.join(project_root, path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return send_from_directory(project_root, path)
     else:
         return "File not found", 404
 
