@@ -42,4 +42,7 @@ ENV PORT=5005 \
 
 # Run: Ollama in background, optionally pull model, then Gunicorn (foreground)
 # Flask app instance is `app` inside `app.py` → `app:app`
-CMD /bin/bash -lc "ollama serve & sleep 1 && (ollama pull ${OLLAMA_PRELOAD_MODEL} || true) && exec gunicorn -b 0.0.0.0:${PORT} --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} --timeout ${GUNICORN_TIMEOUT} app:app"
+# NOTE: `ollama/ollama` images often set ENTRYPOINT to the `ollama` binary.
+# Clear it so we can run a shell that starts multiple processes.
+ENTRYPOINT []
+CMD ["sh", "-lc", "ollama serve & sleep 1 && (ollama pull ${OLLAMA_PRELOAD_MODEL} || true) && exec gunicorn -b 0.0.0.0:${PORT} --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} --timeout ${GUNICORN_TIMEOUT} app:app"]
