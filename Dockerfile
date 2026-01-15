@@ -1,9 +1,9 @@
 # Base image: Ollama preinstalled (Ubuntu)
 FROM ollama/ollama:latest
 
-# Install Python + build deps (kept minimal)
+# Install Python toolchain (Python + pip + venv) and minimal OS deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip \
+    python3 python3-pip python3-venv python-is-python3 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
