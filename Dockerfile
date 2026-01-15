@@ -8,9 +8,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Create a virtual environment (avoids PEP 668 "externally-managed-environment")
+ENV VENV_PATH=/opt/venv
+RUN python -m venv ${VENV_PATH}
+ENV PATH="${VENV_PATH}/bin:${PATH}"
+
 # Install Python dependencies first (better layer caching)
 COPY requirements.txt /app/requirements.txt
-RUN pip3 install --upgrade pip && pip3 install --no-cache-dir -r /app/requirements.txt
+RUN python -m pip install --upgrade pip \
+  && python -m pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy the rest of the application
 COPY . /app
