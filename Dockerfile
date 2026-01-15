@@ -26,9 +26,9 @@ WORKDIR /app
 ENV VENV_PATH=/opt/venv
 ENV PATH="${VENV_PATH}/bin:${PATH}"
 
-# Optional: preload an Ollama model (override at build time if needed)
-ARG OLLAMA_PRELOAD_MODEL=llama3.2
-RUN ollama pull ${OLLAMA_PRELOAD_MODEL} || true
+# Optional: model to pull at *runtime* (build-time pull fails because
+# Ollama needs `ollama serve` running to accept connections).
+ENV OLLAMA_PRELOAD_MODEL=llama3.2
 
 # Expose ports: Ollama + Flask API
 EXPOSE 11434 5005
@@ -40,6 +40,6 @@ ENV PORT=5005 \
     GUNICORN_THREADS=4 \
     GUNICORN_TIMEOUT=180
 
-# Run: Ollama in background + Gunicorn (WSGI) in foreground
+# Run: Ollama in background, optionally pull model, then Gunicorn (foreground)
 # Flask app instance is `app` inside `app.py` → `app:app`
-CMD /bin/bash -lc "ollama serve & exec gunicorn -b 0.0.0.0:${PORT} --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} --timeout ${GUNICORN_TIMEOUT} app:app"
+CMD /bin/bash -lc "ollama serve & sleep 1 && (ollama pull ${OLLAMA_PRELOAD_MODEL} || true) && exec gunicorn -b 0.0.0.0:${PORT} --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} --timeout ${GUNICORN_TIMEOUT} app:app"
