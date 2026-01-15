@@ -14,7 +14,7 @@ import json
 import gc
 
 from langchain_chroma import Chroma
-from langchain.schema.document import Document
+from langchain_core.documents import Document
 from src.models import get_embedding_function
 
 
@@ -148,6 +148,7 @@ def save_comments_to_chroma(comments, video_id):
     batch_size = 100
     for i in range(0, len(documents), batch_size):
         batch = documents[i:i + batch_size]
+#---------------------------------ADDED TO CHROMA---------------------------------        
         db.add_documents(batch)
         print(f"Added batch of {len(batch)} comments to Chroma (total {i + len(batch)})")
 
@@ -262,7 +263,7 @@ def answer_question(question, k=None, video_id=None):
         Dictionary with answer and metadata
     """
     import time
-    from langchain.prompts import ChatPromptTemplate
+    from langchain_core.prompts import ChatPromptTemplate
     from langchain_ollama.llms import OllamaLLM
     
     # Start timing
@@ -346,6 +347,7 @@ def answer_question(question, k=None, video_id=None):
 
     # Retrieve relevant documents
     try:
+#---------------------------------SIMILARITY SEARCH WITH SCORE---------------------------------
         results = db.similarity_search_with_score(question, k=k)
     except Exception as e:
         print(f"Error during similarity search: {e}")
@@ -373,11 +375,12 @@ def answer_question(question, k=None, video_id=None):
 
     context_text = "\n\n".join(context_parts)
 
-    # Format prompt with context
+#---------------------------------FORMATTING PROMPT WITH CONTEXT---------------------------------
     prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
     prompt = prompt_template.format(question=question, context=context_text)
 
-    # Use OllamaLLM model to generate the answer
+
+#---------------------------------GENERATING ANSWER WITH LANGUAGE MODEL---------------------------------
     print("Generating answer with language model...")
     model = OllamaLLM(model="llama3.2")
 
@@ -409,7 +412,7 @@ def generate_comment_summary(video_id=None):
         Summary text string
     """
     import random
-    from langchain.prompts import ChatPromptTemplate
+    from langchain_core.prompts import ChatPromptTemplate
     from langchain_ollama.llms import OllamaLLM
     
     global CURRENT_VIDEO_ID

@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import all necessary functions and constants from refactored modules
-from utils import (
+from src.utils import (
     extract_video_id,
     get_comments,
     preprocess_for_sentiment,
@@ -72,7 +72,14 @@ def analyze_youtube_comments(youtube_url, api_key="AIzaSyDj7I12G6kpxEt4esWYXh2Xw
     video_id = extract_video_id(youtube_url)
     if not video_id:
         return {
-            "error": "Invalid YouTube URL or video ID"
+            "error": "Invalid YouTube URL or video ID",
+            "comment_count": 0,
+            "output_files": {
+                "sentiment_chart": None,
+                "wordcloud": None,
+                "overall_summary": None,
+                "sentiment_summary": None
+            }
         }
 
     print(f"Extracted video ID: {video_id}")
@@ -85,12 +92,26 @@ def analyze_youtube_comments(youtube_url, api_key="AIzaSyDj7I12G6kpxEt4esWYXh2Xw
         if not comments:
             return {
                 "video_id": video_id,
-                "error": "No comments found or comments are disabled for this video"
+                "comment_count": 0,
+                "error": "No comments found or comments are disabled for this video",
+                "output_files": {
+                    "sentiment_chart": None,
+                    "wordcloud": None,
+                    "overall_summary": None,
+                    "sentiment_summary": None
+                }
             }
     except Exception as e:
         return {
             "video_id": video_id,
-            "error": f"Error fetching comments: {str(e)}"
+            "comment_count": 0,
+            "error": f"Error fetching comments: {str(e)}",
+            "output_files": {
+                "sentiment_chart": None,
+                "wordcloud": None,
+                "overall_summary": None,
+                "sentiment_summary": None
+            }
         }
 
     # Step 2: Save comments to Chroma vector database
@@ -110,13 +131,25 @@ def analyze_youtube_comments(youtube_url, api_key="AIzaSyDj7I12G6kpxEt4esWYXh2Xw
             return {
                 "video_id": video_id,
                 "comment_count": comment_count,
-                "error": "Could not retrieve comments from database"
+                "error": "Could not retrieve comments from database",
+                "output_files": {
+                    "sentiment_chart": None,
+                    "wordcloud": None,
+                    "overall_summary": None,
+                    "sentiment_summary": None
+                }
             }
     except Exception as e:
         return {
             "video_id": video_id,
             "comment_count": comment_count,
-            "error": f"Error reading comments from database: {str(e)}"
+            "error": f"Error reading comments from database: {str(e)}",
+            "output_files": {
+                "sentiment_chart": None,
+                "wordcloud": None,
+                "overall_summary": None,
+                "sentiment_summary": None
+            }
         }
 
     # Step 4: Generate overall comment summary

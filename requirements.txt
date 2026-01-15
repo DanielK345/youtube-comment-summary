@@ -1,7 +1,7 @@
 google-api-python-client
 langchain
 langchain_chroma
-langchain-ollama
+langchain-google-genai
 python-dotenv
 flask
 flask-cors
@@ -17,8 +17,8 @@ unidecode
 langdetect 
 emoji
 langchain_core
-langchain_ollama
 langchain_community
+google-generativeai
 torch
 transformers
 ml-dtypes
@@ -26,3 +26,4 @@ pysqlite3-binary
 
 chromadb==0.4.24
 numpy==1.26.4
+posthog==5.0.0
