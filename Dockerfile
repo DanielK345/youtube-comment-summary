@@ -1,25 +1,30 @@
-# Base image: Ollama preinstalled (Ubuntu)
-FROM ollama/ollama:latest
-
-# Install Python toolchain (Python + pip + venv) and minimal OS deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv python-is-python3 \
-  && rm -rf /var/lib/apt/lists/*
+# Build Python environment with guaranteed 3.11+
+FROM python:3.11-slim AS py
 
 WORKDIR /app
 
-# Create a virtual environment (avoids PEP 668 "externally-managed-environment")
+# Create a virtual environment and install dependencies (avoids PEP 668 issues)
 ENV VENV_PATH=/opt/venv
 RUN python -m venv ${VENV_PATH}
 ENV PATH="${VENV_PATH}/bin:${PATH}"
 
-# Install Python dependencies first (better layer caching)
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip \
   && python -m pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy the rest of the application
 COPY . /app
+
+# Final image: Ollama preinstalled (Ubuntu)
+FROM ollama/ollama:latest
+
+# Copy Python 3.11 runtime from builder image
+COPY --from=py /usr/local /usr/local
+COPY --from=py /opt/venv /opt/venv
+COPY --from=py /app /app
+
+WORKDIR /app
+ENV VENV_PATH=/opt/venv
+ENV PATH="${VENV_PATH}/bin:${PATH}"
 
 # Optional: preload an Ollama model (override at build time if needed)
 ARG OLLAMA_PRELOAD_MODEL=llama3.2
