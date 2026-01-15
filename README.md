@@ -1,195 +1,173 @@
-# YouTube Comment Summarizer
+# YouTube Comment Summary
 
-Transform YouTube comment sections into structured insights using AI-powered analysis. Extract meaningful patterns, sentiment, and answers from thousands of comments automatically.
+Analyze a YouTube video’s comments end-to-end: fetch comments, store them in a vector DB, generate an overall summary, run sentiment analysis, build visualizations, and answer follow-up questions grounded in the comments.
 
 ## Features
 
-### Core Analysis
-- **Comment Extraction**: Fetches all comments and replies using YouTube Data API
-- **AI Summarization**: Generate comprehensive summaries of discussion themes
-- **Sentiment Analysis**: Classify comments as positive, negative, or neutral
-- **Visual Analytics**: Sentiment charts and word clouds
-- **Vector Search**: Semantic search through comment databases
+- **Comment extraction**: pulls comment threads + replies using the YouTube Data API.
+- **Vector DB (Chroma)**: persists embeddings per-video for fast semantic retrieval.
+- **Overall comment summary**: generates a concise multi-paragraph summary of discussion themes.
+- **Sentiment analysis**: multilingual sentiment classification (Positive / Neutral / Negative).
+- **Visuals**: sentiment pie chart + word cloud.
+- **Q&A**: ask questions; the system retrieves relevant comments and generates an answer.
 
-### Interactive Q&A System
-- **Natural Language Queries**: Ask questions about the video comments
-- **Context-Aware Responses**: Answers based on actual comment content
-- **Adaptive Sampling**: Intelligently selects relevant comments for accuracy
-- **Multi-video Support**: Maintains separate databases per video
+## Model usage (Embeddings + LLM)
 
-## Performance
+This project is designed to run with **either Gemini or local Ollama**:
 
-### Initial Analysis Time
-- **Small videos** (< 500 comments): 2-3 minutes
-- **Medium videos** (500-2000 comments): 3-5 minutes  
-- **Large videos** (2000+ comments): 5-10+ minutes
+- **Preferred (if available)**: Google Gemini via `langchain-google-genai`
+  - **Embeddings**: `models/embedding-001`
+  - **LLM**: configurable via `GEMINI_MODEL`
+- **Fallback**: Ollama via LangChain community integrations
+  - **LLM (default)**: `llama3.2` (`OLLAMA_CHAT_MODEL`)
+  - **Embeddings (default)**: `nomic-embed-text` (`OLLAMA_EMBED_MODEL`)
 
-### Q&A Response Time
-- **Comment retrieval**: Milliseconds (vector search)
-- **Answer generation**: 30-60 seconds (LLM processing)
-- **Total Q&A time**: ~1 minute per question
+If Gemini fails at runtime (e.g., model `NOT_FOUND` on your API/version), the app retries using Ollama.
 
-Performance depends heavily on hardware specifications (GPU vs CPU).
+## Project structure
 
-## Installation
+```
+youtube-comment-summary/
+├── app.py                  # Flask API + web UI (templates/)
+├── Dockerfile              # Production container (Ollama + Gunicorn)
+├── requirements.txt
+├── assets/                 # README screenshots
+├── templates/              # HTML UI
+├── static/                 # CSS, client assets
+└── src/
+    ├── utils.py            # YouTube API client, preprocessing, plots, wordcloud
+    ├── chroma_db.py        # Chroma persistence, summary + Q&A over comments
+    ├── models.py           # ModelManager (HF sentiment + LLM/embeddings)
+    └── youtube_summary_tool.py  # Orchestrator (pipeline steps)
+```
 
-### Prerequisites
-- Python 3.8+
-- [Ollama](https://ollama.ai/) installed and running
-- YouTube Data API key ([Get one here](https://developers.google.com/youtube/v3/getting-started))
-- **Hardware Recommendations**:
-  - 8GB+ RAM (16GB for large comment sets)
-  - GPU with CUDA support (optional but significantly faster)
-  - 5GB+ free storage for models and vector databases
+## Results (examples)
 
-### Setup
+**Sentiment pie chart**
+
+![Sentiment pie chart](assets/sentiment_pie_chart.png)
+
+**Comment word cloud**
+
+![Comment word cloud](assets/comment_wordcloud.png)
+
+## Local deployment
+
+### Requirements
+
+- **Python**: 3.10+ recommended
+- **YouTube Data API key**
+- Optional (recommended): **Ollama** installed + running for local LLM fallback
+
+### 1) Install dependencies
+
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/youtube-comment-summarizer
-cd youtube-comment-summarizer
-
-# Install dependencies
 pip install -r requirements.txt
+```
 
-# Download required models
+### 2) Configure environment
+
+Create a `.env` in the project root:
+
+```env
+YOUTUBE_API_KEY=YOUR_YOUTUBE_DATA_API_KEY
+
+# Optional: enable Gemini (if your account/project supports the model)
+GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY
+GEMINI_MODEL=gemini-1.5-flash
+
+# Optional: Ollama fallback config
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_CHAT_MODEL=llama3.2
+OLLAMA_EMBED_MODEL=nomic-embed-text
+```
+
+### 3) If using Ollama (recommended)
+
+```bash
 ollama pull llama3.2
-ollama pull mxbai-embed-large
+ollama pull nomic-embed-text
+ollama serve
+```
 
-# Set up your API key in youtube_summary_tool_copy.py
-# Replace: api_key="YOUR_API_KEY_HERE"
+### 4) Run the Flask app
 
-# Launch the application
+```bash
 python app.py
 ```
 
-## Usage
+Then open:
+- **Web UI**: `http://localhost:5005`
 
-### Web Interface
-1. Start the server: `python app.py`
-2. Navigate to `http://localhost:5000`
-3. Enter YouTube URL and wait 3-5 minutes for analysis
-4. Explore results in Summary, Sentiment, Word Cloud, and Q&A tabs
+## Docker (production)
 
-### Example Questions
-- "What do people think about the music quality?"
-- "Are there any complaints about the video?"
-- "What are the most common suggestions?"
-- "How many people mentioned the graphics?"
+This repo ships a production Docker image that runs:
+- **Ollama** on `11434`
+- **Gunicorn (WSGI)** serving Flask on `5005`
 
-### Command Line
+### Build
+
 ```bash
-# Analyze a video
-python youtube_summary_tool_copy.py "https://www.youtube.com/watch?v=VIDEO_ID"
-
-# Ask specific questions
-python youtube_summary_tool_copy.py "VIDEO_ID" --question "What are the main criticisms?"
-
-# Custom sampling
-python youtube_summary_tool_copy.py "VIDEO_ID" --question "Summarize reactions" --k 100
+docker build -t youtube-comment-summary .
 ```
 
-## API Endpoints
+### Run
 
-### Analyze Video
-```http
-POST /api/analyze
-Content-Type: application/json
+```bash
+docker run --rm \
+  -p 5005:5005 \
+  -p 11434:11434 \
+  --env-file .env \
+  youtube-comment-summary
+```
 
+### Runtime configuration (Docker)
+
+- **Gunicorn**
+  - `PORT` (default `5005`)
+  - `GUNICORN_WORKERS` (default `1`)
+  - `GUNICORN_THREADS` (default `4`)
+  - `GUNICORN_TIMEOUT` (default `180`)
+- **Ollama**
+  - `OLLAMA_BASE_URL` is set to `http://127.0.0.1:11434` inside the container by default
+  - `OLLAMA_CHAT_MODEL`, `OLLAMA_EMBED_MODEL`
+
+## API (Flask)
+
+### Analyze a video
+
+`POST /api/analyze`
+
+```json
 {
   "youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID"
 }
 ```
 
-### Ask Questions
-```http
-POST /api/ask
-Content-Type: application/json
+### Ask a question
 
+`POST /api/ask`
+
+```json
 {
-  "question": "What do people think about this?",
+  "question": "What are the main criticisms?",
   "k": 50
 }
 ```
 
-### Check Status
-```http
-GET /api/status
-```
+### Status
 
-## How It Works
+`GET /api/status`
 
-### Initial Processing
-When you submit a YouTube URL:
+## Outputs
 
-1. **Comment Extraction** (30-60s): Fetches all comments via YouTube API
-2. **Embedding Generation** (1-2 min): Converts comments to vector representations  
-3. **Database Storage** (30s): Saves to ChromaDB for fast retrieval
-4. **Sentiment Analysis** (1-2 min): AI analyzes emotional tone
-5. **Visualization** (30s): Generates charts and word clouds
-6. **Summary Creation** (1-2 min): LLM writes comprehensive summaries
-
-### Q&A Process
-When you ask a question:
-
-1. **Vector Search** (milliseconds): Finds comments most similar to your question
-2. **Context Building** (seconds): Assembles relevant comments
-3. **LLM Processing** (30-60s): Llama 3.2 synthesizes an answer
-4. **Response** delivered with context and insights
-
-## Architecture
+Per video, results are saved under `chroma/<VIDEO_ID>/`:
 
 ```
-Web Interface ◄──► Flask Backend ◄──► YouTube API
-     │                   │
-     └───────────────────┼──────────────────┐
-                         ▼                  ▼
-                 Analysis Engine      ChromaDB
-                         │           (Vector DB)
-                    ┌────┼────┐
-                    ▼    ▼    ▼
-                Ollama HuggingFace NLTK
-                (LLM) (Sentiment) (Text)
+chroma/<VIDEO_ID>/
+├── overall_summary.txt
+├── sentiment_summary.txt
+├── sentiment_pie_chart.png
+├── comment_wordcloud.png
+└── video_metadata.json
 ```
-
-## Configuration
-
-### Sentiment Analysis Models
-- **Default**: `AmaanP314/youtube-xlm-roberta-base-sentiment-multilingual`
-- **Alternative**: VADER (available in `youtube_summary_tool.py`)
-
-### Sample Size Optimization
-The system automatically calculates optimal sample sizes:
-- **<50 comments**: 60-70% of total
-- **50-200 comments**: 30-40% of total  
-- **200-1000 comments**: 20-30% of total
-- **1000+ comments**: 10-20% with caps at 600
-
-## Output Files
-
-Each analysis creates:
-```
-chroma/
-└── VIDEO_ID/
-    ├── sentiment_pie_chart.png
-    ├── comment_wordcloud.png
-    ├── overall_summary.txt
-    ├── sentiment_summary.txt
-    └── video_metadata.json
-```
-
-## Limitations
-
-- **Processing Time**: Initial analysis takes 3-10 minutes depending on hardware
-- **API Limits**: YouTube API has daily quotas (10,000 requests/day by default)
-- **Hardware Dependency**: Performance heavily depends on GPU/CPU specifications
-- **Memory Usage**: Large videos (5k+ comments) require significant RAM
-- **Language**: Optimized for English, supports multilingual content
-- **Dependencies**: Requires local Ollama installation and model downloads
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request

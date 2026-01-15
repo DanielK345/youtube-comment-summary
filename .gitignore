@@ -1,1 +1,17 @@
 .venv/
+win_venv/
+chroma/
+.env
+*.txt
+*.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.flaskenv
