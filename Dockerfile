@@ -5,8 +5,9 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # System deps + Ollama install
+# zstd is used to speed up the installation of Ollama
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl zstd \
+    ca-certificates curl zstd \ 
   && rm -rf /var/lib/apt/lists/* \
   && curl -fsSL https://ollama.com/install.sh | sh
 
@@ -35,4 +36,5 @@ ENV PORT=5005 \
     GUNICORN_TIMEOUT=180
 
 # Start Ollama, optionally pull a model, then start Gunicorn
-CMD ["sh", "-lc", "ollama serve & sleep 1 && (ollama pull ${OLLAMA_PRELOAD_MODEL} || true) && exec gunicorn -b 0.0.0.0:${PORT} --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} --timeout ${GUNICORN_TIMEOUT} app:app"]
+# Use full path to gunicorn from venv to avoid PATH issues
+CMD ["sh", "-lc", "ollama serve & sleep 1 && (ollama pull ${OLLAMA_PRELOAD_MODEL} || true) && exec ${VENV_PATH}/bin/gunicorn -b 0.0.0.0:${PORT} --workers ${GUNICORN_WORKERS} --threads ${GUNICORN_THREADS} --timeout ${GUNICORN_TIMEOUT} app:app"]
