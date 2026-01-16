@@ -6,7 +6,7 @@ WORKDIR /app
 
 # System deps + Ollama install
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl \
+    ca-certificates curl zstd \
   && rm -rf /var/lib/apt/lists/* \
   && curl -fsSL https://ollama.com/install.sh | sh
 
